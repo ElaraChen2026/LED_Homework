@@ -1,0 +1,27 @@
+# CMake / CLion 构建输出目录
+# 必须忽略: CMakeCache.txt 记录本机绝对路径, 提交后别人无法直接构建
+build/
+cmake-build-*/
+
+# 编译中间文件与产物
+*.o
+*.obj
+*.d
+*.elf
+*.hex
+*.bin
+*.map
+*.su
+*.a
+
+# CLion 工作区配置(含本机路径)
+.idea/workspace.xml
+.idea/shelf/
+.idea/queries/
+.idea/dataSources/
+.idea/dataSources.local.xml
+
+# 编辑器与系统文件
+.vscode/
+Thumbs.db
+desktop.ini
