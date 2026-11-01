@@ -1,49 +1,30 @@
 @echo off
 rem ============================================================
-rem Auto flash STM32F103 via ST-LINK V2 -- WITH RETRY
-rem Arg %1 = elf full path. Called from CMake POST_BUILD / flash target.
+rem Flash wrapper -- delegates to flash.ps1
 rem
-rem Why stlink-v2.cfg + 100 kHz + retry:
-rem   dapdirect transport (interface/stlink.cfg) is unstable on this
-rem   clone at the low target voltage (~2.7 V). stlink-v2.cfg (HLA)
-rem   works, but the link stays marginal, so a single attempt only
-rem   succeeds about half the time -- retry until "Verified OK".
+rem   Arg %1 = elf full path
+rem   Arg %2 = optional "strict": propagate failure as exit code 1
+rem            (used by the `flash` target so CLion shows the error)
 rem
-rem Always exits 0 so an unplugged board never fails the build.
-rem ASCII only: cmd mis-parses UTF-8 comments.
+rem Without "strict" this always exits 0, so an unplugged board
+rem never turns a normal Build red.
+rem
+rem ASCII only + CRLF line endings -- cmd mis-parses both UTF-8
+rem and bare LF, which silently breaks parenthesised blocks.
 rem ============================================================
-setlocal enabledelayedexpansion
-set OPENOCD=D:\OpenOCD\bin\openocd.exe
-set SCRIPTS=D:\OpenOCD\share\openocd\scripts
+setlocal
+set SCRIPT=%~dp0flash.ps1
 set ELF=%~1
-set LOG=%TEMP%\autoflash.log
+set STRICT=
+if /I "%~2"=="strict" set STRICT=-Strict
 
 if "%ELF%"=="" goto skip
-if not exist "%OPENOCD%" goto skip
 if not exist "%ELF%" goto skip
+if not exist "%SCRIPT%" goto skip
 
-set ELFFWD=%ELF:\=/%
-set TRY=0
-
-:retry
-set /a TRY+=1
-echo [AUTOFLASH] attempt !TRY! ...
-"%OPENOCD%" -s "%SCRIPTS%" -f interface/stlink-v2.cfg -f target/stm32f1x.cfg -c "adapter speed 100" -c "program %ELFFWD% verify reset exit" > "%LOG%" 2>&1
-findstr /C:"Verified OK" "%LOG%" >nul
-if not errorlevel 1 goto success
-if !TRY! GEQ 10 goto failed
-ping -n 2 127.0.0.1 >nul
-goto retry
-
-:success
-echo [AUTOFLASH] OK - flashed and verified on attempt !TRY!
-exit /b 0
-
-:failed
-echo [AUTOFLASH] FAILED after !TRY! attempts - check ST-LINK wiring and power
-findstr /C:"Error" "%LOG%"
-exit /b 0
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" -Elf "%ELF%" %STRICT%
+exit /b %ERRORLEVEL%
 
 :skip
-echo [AUTOFLASH] skipped (openocd or elf not found)
+echo [AUTOFLASH] skipped (elf or script not found)
 exit /b 0

@@ -69,9 +69,11 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
 # ---------------------------------------------------------------------------
 # 自动烧录: 固件链接完成后立刻烧录到开发板
-# 这样只要 CLion 编译了这个工程(按 RUN 或按小锤子都会先编译), 板子就被更新
-# 烧录交给 cmake/flash_postbuild.cmd, 该脚本始终返回 0,
-# 所以即使板子没插, 编译也不会失败
+# 这样只要 CLion 编译了这个工程(按 RUN 或按小锤子都会先编译), 板子就被更新。
+#
+# 这里故意不带 strict: flash_postbuild.cmd 失败也返回 0,
+# 所以板子没插 / SWD 线掉了的时候, 普通编译不会因此报红。
+# 想看到烧录失败, 用下面的 flash 目标(它带 strict)。
 # ---------------------------------------------------------------------------
 add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
     COMMAND cmd /c "${CMAKE_SOURCE_DIR}/cmake/flash_postbuild.cmd" "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>"
@@ -85,13 +87,16 @@ add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
 #       (会先编译, 再烧录, 自动校验并复位运行)
 # 下载器: ST-LINK V2 (SWD)
 #
-# 实际烧录交给 cmake/flash_postbuild.cmd, 它会自动重试直到校验通过。
-# 原因: 这台机器的 SWD 链路电压偏低(约 2.7V), 单次烧录成功率只有一半左右,
-#       interface/stlink.cfg 用的 dapdirect 协议在此环境下不稳定,
-#       必须改用 interface/stlink-v2.cfg (HLA) + 100kHz + 重试。
+# 实际烧录交给 cmake/flash.ps1, 策略是:
+#   1) 单遍 program <elf> verify reset exit (OpenOCD 逐字节回读校验,
+#      通过才算成功), 速度 480 kHz -> 100 kHz 逐级重试;
+#   2) 单遍多次失败才降级到"逐页擦除 + 每 256 字节写入"的兜底路径。
+#
+# 这里带 strict: 烧录失败会以非 0 退出码回到 CLion, 界面上能看见错误,
+# 不会被误当成烧录成功。
 # ---------------------------------------------------------------------------
 add_custom_target(flash
-    COMMAND cmd /c "${CMAKE_SOURCE_DIR}/cmake/flash_postbuild.cmd" "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>"
+    COMMAND cmd /c "${CMAKE_SOURCE_DIR}/cmake/flash_postbuild.cmd" "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>" strict
     DEPENDS ${CMAKE_PROJECT_NAME}
     COMMENT "烧录 ${CMAKE_PROJECT_NAME}.elf 到 STM32F103 (ST-LINK V2 / SWD)"
     VERBATIM

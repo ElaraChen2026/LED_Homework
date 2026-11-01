@@ -33,6 +33,24 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+/*
+ * LED 极性配置
+ * -------------------------------------------------------------
+ * 1 = 共阳接法: LED 公共端(阳极)接 3.3V, 引脚拉低才点亮   <-- 当前板子
+ * 0 = 共阴接法: LED 阴极经限流电阻接 GND, 引脚拉高才点亮
+ *
+ * 判据(500ms 流水时观察): 亮 1 颗 = 配置正确; 亮 2 颗 = 配置反了, 改成另一个值。
+ */
+#define LED_ACTIVE_LOW  1
+
+#if LED_ACTIVE_LOW
+  #define LED_ON_LEVEL    GPIO_PIN_RESET   /* 共阳: 低电平点亮 */
+  #define LED_OFF_LEVEL   GPIO_PIN_SET     /* 共阳: 高电平熄灭 */
+#else
+  #define LED_ON_LEVEL    GPIO_PIN_SET     /* 共阴: 高电平点亮 */
+  #define LED_OFF_LEVEL   GPIO_PIN_RESET   /* 共阴: 低电平熄灭 */
+#endif
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -88,6 +106,10 @@ int main(void)
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
 
+  /* 上电先把三颗灯全部关掉: 共阳接法下引脚复位态是低电平, 会全亮,
+     这里立刻写入熄灭电平, 避免开机出现 500ms 的"三灯全亮" */
+  HAL_GPIO_WritePin(GPIOA, LED0_Pin | LED1_Pin | LED2_Pin, LED_OFF_LEVEL);
+
   /* 板载 LED (PC13, 低电平点亮) —— 用于验证板和程序是否正常, 不需要外部接线 */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   {
@@ -118,15 +140,15 @@ int main(void)
     {
       last_tick += 500U;
 
-      /* 三灯全灭 */
-      HAL_GPIO_WritePin(GPIOA, LED0_Pin | LED1_Pin | LED2_Pin, GPIO_PIN_RESET);
+      /* 三灯全灭 (电平由 LED_OFF_LEVEL 决定, 不再硬编码高低) */
+      HAL_GPIO_WritePin(GPIOA, LED0_Pin | LED1_Pin | LED2_Pin, LED_OFF_LEVEL);
 
       /* 只点亮当前这一颗 */
       switch (led_index)
       {
-        case 0U: HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET); break;
-        case 1U: HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET); break;
-        case 2U: HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET); break;
+        case 0U: HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, LED_ON_LEVEL); break;
+        case 1U: HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, LED_ON_LEVEL); break;
+        case 2U: HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, LED_ON_LEVEL); break;
         default: break;
       }
 
