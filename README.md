@@ -194,5 +194,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File cmake/check_link.ps1
 
 ## 七、验收视频
 
-见仓库中的录屏文件：展示 CLion 编译通过、启动烧录、成功烧录至开发板，
+见仓库根目录的 `验收视频.mp4`：展示 CLion 编译通过、启动烧录、成功烧录至开发板，
 以及开发板上三颗 LED 间隔 500ms 的流水灯效果。
